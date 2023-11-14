@@ -34,4 +34,4 @@ COPY --from=build /app/out-linux-* .
 
 WORKDIR /data
 
-ENTRYPOINT ["/app/AS-Restarter", "-t -d --delete-old-presets"]
+ENTRYPOINT ["/app/AS-Restarter", "-t", "-d", "--delete-old-presets"]

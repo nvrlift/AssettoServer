@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   assetto-server:
-    image: compujuckel/assettoserver:latest
+    image: ghcr.io/nvrlift/assettoserver:latest
     container_name: AssettoServer
     ports:
       - "9700:9700"
