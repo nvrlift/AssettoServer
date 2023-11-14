@@ -9,10 +9,8 @@ target "default" {
     "linux/arm64",
   ]
   tags = [
-    "nvrlift/assettoserver:latest"
+    "ghcr.io/nvrlift/assettoserver:0.0.53",
+    "ghcr.io/nvrlift/assettoserver:latest"
   ]
-  target "default" {
-    output = ["type=image"]
-  }
+  output = ["type=registry"]
 }
-
