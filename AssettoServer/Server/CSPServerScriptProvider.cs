@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using AssettoServer.Server.Configuration;
 using IniParser.Model;
+using JetBrains.Annotations;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
 namespace AssettoServer.Server;
 
+[PublicAPI]
 public class CSPServerScriptProvider
 {
     internal List<Func<IActionResult>> Scripts { get; } = new();
@@ -21,9 +22,8 @@ public class CSPServerScriptProvider
         _cspServerExtraOptions = cspServerExtraOptions;
     }
 
-    public virtual void AddScriptFromResource(string resourceName, string? debugFilename = null, Dictionary<string, object>? configuration = null)
+    public virtual void AddScript(Stream stream, string? debugFilename = null, Dictionary<string, object>? configuration = null)
     {
-        using var stream = Assembly.GetCallingAssembly().GetManifestResourceStream(resourceName)!;
         using var memory = new MemoryStream();
         stream.CopyTo(memory);
         var bytes = memory.ToArray();

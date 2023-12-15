@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using AssettoServer.Network.Tcp;
 using AssettoServer.Server.Configuration;
@@ -103,7 +102,8 @@ public class ACServer : CriticalBackgroundService
             cspFeatureManager.Add(new CSPFeature { Name = "CUSTOM_UPDATE" });
         }
 
-        cspServerScriptProvider.AddScriptFromResource("AssettoServer.Server.Lua.assettoserver.lua", "assettoserver.lua");
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AssettoServer.Server.Lua.assettoserver.lua")!;
+        cspServerScriptProvider.AddScript(stream, "assettoserver.lua");
     }
 
     private bool IsSessionOver()

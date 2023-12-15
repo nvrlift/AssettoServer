@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -51,7 +50,8 @@ public class AiBehavior : CriticalBackgroundService, IAssettoServerAutostart
 
         if (_configuration.Extra.AiParams.Debug)
         {
-            serverScriptProvider.AddScriptFromResource("AssettoServer.Server.Ai.ai_debug.lua", "ai_debug.lua");
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AssettoServer.Server.Ai.ai_debug.lua")!;
+            serverScriptProvider.AddScript(stream, "ai_debug.lua");
         }
 
         _updateDurationTimer = Metrics.CreateSummary("assettoserver_aibehavior_update", "AiBehavior.Update Duration", MetricDefaults.DefaultQuantiles);
@@ -74,7 +74,7 @@ public class AiBehavior : CriticalBackgroundService, IAssettoServerAutostart
             var targetAiState = args.TargetCar.GetClosestAiState(sender.EntryCar.Status.Position);
             if (targetAiState.AiState != null && targetAiState.DistanceSquared < 25 * 25)
             {
-                targetAiState.AiState.StopForCollision();
+                Task.Delay(Random.Shared.Next(100, 500)).ContinueWith(_ => targetAiState.AiState.StopForCollision());
             }
         }
     }
@@ -182,9 +182,13 @@ public class AiBehavior : CriticalBackgroundService, IAssettoServerAutostart
 
         foreach (var entryCar in _entryCarManager.EntryCars)
         {
+            var (currentSplinePointId, _) = _spline.WorldToSpline(entryCar.Status.Position);
+            var drivingTheRightWay = Vector3.Dot(_spline.Operations.GetForwardVector(currentSplinePointId), entryCar.Status.Velocity) > 0;
+
             if (!entryCar.AiControlled
                 && entryCar.Client?.HasSentFirstUpdate == true
-                && _sessionManager.ServerTimeMilliseconds - entryCar.LastActiveTime < _configuration.Extra.AiParams.PlayerAfkTimeoutMilliseconds)
+                && _sessionManager.ServerTimeMilliseconds - entryCar.LastActiveTime < _configuration.Extra.AiParams.PlayerAfkTimeoutMilliseconds
+                && (_configuration.Extra.AiParams.TwoWayTraffic || _configuration.Extra.AiParams.WrongWayTraffic || drivingTheRightWay))
             {
                 _playerCars.Add(entryCar);
             }
@@ -193,6 +197,7 @@ public class AiBehavior : CriticalBackgroundService, IAssettoServerAutostart
                 entryCar.RemoveUnsafeStates();
                 entryCar.GetInitializedStates(_initializedAiStates, _uninitializedAiStates);
             }
+            
         }
 
         _aiStateCountMetric.Set(_initializedAiStates.Count);

@@ -53,7 +53,13 @@ public class ACUdpServer : CriticalBackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         Log.Information("Starting UDP server on port {Port}", _port);
-        
+
+        // https://stackoverflow.com/questions/5199026/c-sharp-async-udp-listener-socketexception
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            _socket.IOControl(-1744830452 /* SIO_UDP_CONNRESET */, new byte[] { 0, 0, 0, 0 }, null);
+        }
+
         _socket.Bind(new IPEndPoint(IPAddress.Any, _port));
         await Task.Factory.StartNew(() => ReceiveLoop(stoppingToken), TaskCreationOptions.LongRunning);
     }
@@ -140,15 +146,11 @@ public class ACUdpServer : CriticalBackgroundService
                 }
                 else if (packetId == ACServerProtocol.PositionUpdate)
                 {
-                    if (!client.HasReceivedFirstPositionUpdate)
-                        client.ReceivedFirstPositionUpdate();
-
-                    if (!client.HasPassedChecksum) return;
-
                     if (!client.HasSentFirstUpdate)
                         client.SendFirstUpdate();
-
-                    if (client.SecurityLevel < _configuration.Extra.MandatoryClientSecurityLevel) return;
+                    
+                    if (client.ChecksumStatus != ChecksumStatus.Succeeded
+                        || client.SecurityLevel < _configuration.Extra.MandatoryClientSecurityLevel) return;
 
                     car.UpdatePosition(packetReader.Read<PositionUpdateIn>());
                 }
