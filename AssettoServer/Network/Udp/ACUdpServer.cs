@@ -53,7 +53,9 @@ public class ACUdpServer : CriticalBackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         Log.Information("Starting UDP server on port {Port}", _port);
-        
+
+        _socket.DisableUdpIcmpExceptions();       
+        _socket.ReceiveTimeout = 1000;
         _socket.Bind(new IPEndPoint(IPAddress.Any, _port));
         await Task.Factory.StartNew(() => ReceiveLoop(stoppingToken), TaskCreationOptions.LongRunning);
     }
@@ -70,11 +72,18 @@ public class ACUdpServer : CriticalBackgroundService
                 var bytesRead = _socket.ReceiveFrom(buffer, SocketFlags.None, address);
                 OnReceived(address, buffer, bytesRead);
             }
+            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.TimedOut)
+            {
+                // This is a workaround because on Linux, the SocketAddress Size will be set to 0 for some reason
+                address.Size = address.Buffer.Length;
+            }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error in UDP receive loop");
             }
         }
+
+        _socket.Dispose();
     }
 
     public void Send(SocketAddress address, byte[] buffer, int offset, int size)

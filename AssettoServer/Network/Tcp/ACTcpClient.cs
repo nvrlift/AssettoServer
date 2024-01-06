@@ -60,7 +60,7 @@ public class ACTcpClient : IClient
 
     internal SocketAddress? UdpEndpoint { get; private set; }
     internal bool SupportsCSPCustomUpdate { get; private set; }
-    internal int? CSPVersion { get; private set; }
+    public int? CSPVersion { get; private set; }
     internal string ApiKey { get; }
 
     private static ThreadLocal<byte[]> UdpSendBuffer { get; } = new(() => GC.AllocateArray<byte>(1500, true));
@@ -105,7 +105,7 @@ public class ACTcpClient : IClient
     /// <summary>
     ///  Fires when a slot has been secured for a player and the handshake response is about to be sent.
     /// </summary>
-    public event EventHandler<ACTcpClient, HandshakeAcceptedEventArgs> HandshakeAccepted = null!;
+    public event EventHandler<ACTcpClient, HandshakeAcceptedEventArgs>? HandshakeAccepted;
 
     /// <summary>
     /// Fires when a client has sent the first position update and is visible to other players.
@@ -122,6 +122,11 @@ public class ACTcpClient : IClient
     /// Fires when a client has completed a lap
     /// </summary>
     public event EventHandler<ACTcpClient, LapCompletedEventArgs>? LapCompleted;
+
+    /// <summary>
+    /// Fires before sending the car list response
+    /// </summary>
+    public event EventHandler<ACTcpClient, CarListResponseSendingEventArgs>? CarListResponseSending;
 
     private class ACTcpClientLogEventEnricher : ILogEventEnricher
     {
@@ -660,6 +665,7 @@ public class ACTcpClient : IClient
             EntryCars = carsInPage
         };
 
+        CarListResponseSending?.Invoke(this, new CarListResponseSendingEventArgs(carListResponse));
         SendPacket(carListResponse);
     }
 
@@ -866,6 +872,7 @@ public class ACTcpClient : IClient
                     await Task.Delay(TimeSpan.FromSeconds(_configuration.Extra.PlayerChecksumTimeoutSeconds));
                     if (ChecksumStatus != ChecksumStatus.Succeeded && IsConnected)
                     {
+                        Log.Information("Checksum request for {ClientName} ({SessionId}) timed out. Consider increasing PlayerChecksumTimeoutSeconds", Name, SessionId);
                         await _entryCarManager.KickAsync(this, KickReason.ChecksumFailed, null, null, $"{Name} did not send the requested checksums.");
                     }
                 });
